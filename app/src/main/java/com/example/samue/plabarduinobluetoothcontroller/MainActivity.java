@@ -30,7 +30,7 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothAdapter myBluetooth;
     TextView connectionTextView;
     public static String EXTRA_ADDRESS ="com.samue.plabarduinobluetoothcontroller"; // for intent
-    //public static String EXTRA_DEVICE_NAME = "com.samue.devicename";
+    public static String EXTRA_DEVICE_NAME = "com.samue.devicename";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -150,12 +150,12 @@ public class MainActivity extends AppCompatActivity {
         //Get device MAC address, the last 17 chars in the View
         String info = ((TextView) v).getText().toString();
         String address = info.substring(info.length() - 17);
-        //String deviceName = info.substring(0, info.length() - 17);
+        String deviceName = info.substring(0, info.length() - 17);
         //Make intent to start a new activity
         Intent i = new Intent(MainActivity.this, LedControl.class);
         //Change the activity
         i.putExtra(EXTRA_ADDRESS, address); //This will be received at ledControl (class) activity
-        //i.putExtra(EXTRA_DEVICE_NAME, deviceName);
+        i.putExtra(EXTRA_DEVICE_NAME, deviceName);
         startActivity(i);
     }
 

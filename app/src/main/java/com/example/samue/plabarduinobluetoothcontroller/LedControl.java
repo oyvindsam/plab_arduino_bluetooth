@@ -6,6 +6,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.support.v7.widget.CardView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
@@ -21,13 +22,16 @@ import android.os.AsyncTask;
 import java.io.IOException;
 import java.util.UUID;
 
+import static com.example.samue.plabarduinobluetoothcontroller.R.id.btnOn;
 import static com.example.samue.plabarduinobluetoothcontroller.R.layout.dialog;
 
 public class LedControl extends AppCompatActivity {
-    Button btnOn, btnOff, btnDisconnect;
+    Button btnOn, btnOff, btnDisconnect, btnSendCommand;
     SeekBar brightness;
+    CardView cardView;
     TextView progressTxt, cardStatus;
     String address, deviceName;
+    Intent newInt;
 
     private ProgressDialog progress;
     BluetoothAdapter myBlueTooth = null;
@@ -40,12 +44,29 @@ public class LedControl extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_led_control);
 
-        Intent newInt = getIntent();
+        newInt = getIntent();
         address = newInt.getStringExtra(MainActivity.EXTRA_ADDRESS);
-        //deviceName = newInt.getStringExtra(MainActivity.EXTRA_DEVICE_NAME);
+        deviceName = newInt.getStringExtra(MainActivity.EXTRA_DEVICE_NAME);
 
-        TextView cardStatus = (TextView) findViewById(R.id.card_status_control_panel);
+        cardStatus = (TextView) findViewById(R.id.card_control_panel_text_view);
         cardStatus.setText(getString(R.string.status_card_view_cp, deviceName));
+
+        cardView = (CardView) findViewById(R.id.card_control_panel_card_view);
+        cardView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                renameDevice();
+            }
+        });
+
+        btnSendCommand = (Button) findViewById(R.id.btn_send_command);
+        btnSendCommand.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                sendCommand();
+            }
+        });
+
         btnOn = (Button) findViewById(R.id.btnOn);
         btnOn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -62,7 +83,13 @@ public class LedControl extends AppCompatActivity {
             }
         });
 
-        //btnDisconnect = (Button) findViewById(R.id.btnDisconnect);
+        btnDisconnect = (Button) findViewById(R.id.btn_disconnect);
+        btnDisconnect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                disconnect();
+            }
+        });
 
         progressTxt = (TextView) findViewById(R.id.progress_txt);
         brightness = (SeekBar) findViewById(R.id.seekBar_brightness);
@@ -93,7 +120,7 @@ public class LedControl extends AppCompatActivity {
 
         @Override
         protected void onPreExecute() {
-            progress = ProgressDialog.show(LedControl.this, "Connecting to " + deviceName, "Please wait.");
+            progress = ProgressDialog.show(LedControl.this, getString(R.string.progress_dialog_connecting, deviceName), getString(R.string.progress_dialog_please_wait));
         }
 
         @Override
@@ -119,7 +146,7 @@ public class LedControl extends AppCompatActivity {
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
             if (!connectSuccess) {
-                msg("Connection failed.");
+                msg("Connection failed");
                 finish();
             } else {
                 msg("Connected");
@@ -129,28 +156,30 @@ public class LedControl extends AppCompatActivity {
         }
     }
 
-    public void renameDevice(View view) {
+    public void renameDevice() {
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         LayoutInflater inflater = this.getLayoutInflater();
         final View dialogView = inflater.inflate(dialog, null);
         dialogBuilder.setView(dialogView);
 
-        final EditText deviceNameEditText = (EditText) dialogView.findViewById(R.id.edit1);
-        dialogBuilder.setTitle("Enter new device name");
-        dialogBuilder.setPositiveButton("Done", new DialogInterface.OnClickListener() {
+        final EditText deviceNameEditText = (EditText) dialogView.findViewById(R.id.alert_dialog_name_text_view);
+        dialogBuilder.setTitle(getString(R.string.alert_dialog_header_device));
+        dialogBuilder.setPositiveButton(getString(R.string.alert_dialog_done), new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 if (btSocket != null) {
                     try {
                         btSocket.getOutputStream().write(("AT+NAME" + (deviceNameEditText.getText()).toString()).getBytes());
                         deviceName = deviceNameEditText.getText().toString();
                     } catch (IOException e) {
-                        msg("Error");
+                        msg("Error. Cannot communicate with bluetooth socket");
                     }
                 }
-                cardStatus.setText(getString(R.string.status_card_view_cp, deviceName);  // Or use startActivityForResult
+                cardStatus = (TextView) findViewById(R.id.card_control_panel_text_view);
+                cardStatus.setText(getString(R.string.status_card_view_cp, deviceName));  // Or use startActivityForResult
             }
         });
-        dialogBuilder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+
+        dialogBuilder.setNegativeButton(getString(R.string.alert_dialog_cancel), new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 //pass
             }
@@ -159,17 +188,46 @@ public class LedControl extends AppCompatActivity {
         b.show();
     }
 
+    public void sendCommand() {
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        final View dialogView = inflater.inflate(dialog, null);
+        dialogBuilder.setView(dialogView);
+
+        final EditText deviceNameEditText = (EditText) dialogView.findViewById(R.id.alert_dialog_name_text_view);
+        dialogBuilder.setTitle(getString(R.string.alert_dialog_header_command));
+        dialogBuilder.setMessage(getString(R.string.alert_dialog_message_command));
+        dialogBuilder.setPositiveButton(getString(R.string.alert_dialog_done), new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                if (btSocket != null) {
+                    try {
+                        btSocket.getOutputStream().write((deviceNameEditText.getText().toString().toUpperCase()).getBytes());
+                    } catch (IOException e) {
+                        msg("Error. Cannot communicate with bluetooth socket");
+                    }
+                }
+            }
+        });
+        dialogBuilder.setNegativeButton(getString(R.string.alert_dialog_cancel), new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                //pass
+            }
+        });
+        AlertDialog b = dialogBuilder.create();
+        b.show();
+    }
+
+
     private void msg(String s) {
         Toast.makeText(getApplicationContext(), s, Toast.LENGTH_LONG).show();
     }
 
-    //TODO implement?
-    public void disconnect(View view) {
+    public void disconnect() {
         if (btSocket != null) {
             try {
                 btSocket.close();
             } catch (IOException e) {
-                msg("Error");
+                msg("Error. Cannot communicate with bluetooth socket");
             }
         }
         finish(); // Return to the first layout
@@ -178,9 +236,9 @@ public class LedControl extends AppCompatActivity {
     public void turnOffLed() {
         if (btSocket != null) {
             try {
-                btSocket.getOutputStream().write("f".getBytes());
+                btSocket.getOutputStream().write("LEDOFF".toString().getBytes());
             } catch (IOException e) {
-                msg("Error");
+                msg("Error. Cannot communicate with bluetooth socket");
             }
         }
     }
@@ -188,9 +246,9 @@ public class LedControl extends AppCompatActivity {
     public void turnOnLed() {
         if (btSocket != null) {
             try {
-                btSocket.getOutputStream().write("n".getBytes());
+                btSocket.getOutputStream().write("LEDON".toString().getBytes());
             } catch (IOException e) {
-                msg("Error");
+                msg("Error. Cannot communicate with bluetooth socket");
             }
         }
     }
