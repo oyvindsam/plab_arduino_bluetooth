@@ -16,7 +16,7 @@
     <string name="disconnect">Disconnect</string>
     <string name="progress_dialog_connecting">Connecting to <xliff:g id="deviceName" example="HC-06">%s</xliff:g></string>
     <string name="progress_dialog_please_wait">Please wait.</string>
-    <string name="alert_dialog_done">Done</string>
+    <string name="alert_dialog_done">Execute</string>
     <string name="alert_dialog_cancel">Cancel</string>
     <string name="alert_dialog_header_device">Enter new device name</string>
     <string name="alert_dialog_header_command">Enter new command</string>
