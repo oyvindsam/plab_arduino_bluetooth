@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.ArrayList;
 
 import android.support.v7.widget.CardView;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ListView;
@@ -21,6 +22,7 @@ import android.content.Intent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 
+import static android.R.attr.action;
 import static android.R.attr.filter;
 import static android.R.id.message;
 import static android.provider.Settings.Global.DEVICE_NAME;
@@ -87,24 +89,33 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //The BroadcastReceiver that listens for bluetooth broadcasts
+    // Goal for this code: check bluetooth status and give user feedback on:
+    // 1. [on, not connected], 2. [on, connected to "device"], 3. [off]
     class mReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction(); // gets the action (ACTION_ACL_CONNECTED etc..)
             BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 
+            // Bluetooth is turned off
             if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
-                if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_OFF) {
+                if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_OFF
+                        || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_OFF) {
                     connectionTextView.setText(getString(R.string.status_card_view_off));
-                } else {
+                }
+
+                if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_ON
+                    || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_ON) {
                     connectionTextView.setText(getString(R.string.status_card_view_on));
                 }
             }
+            // BT is on and connected
             else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
                 deviceName = device.getName();
                 String statusMessage = getString(R.string.status_card_view_connected, deviceName);
                 connectionTextView.setText(statusMessage);
             }
+            // Bt is on but disconnected
             else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
                 connectionTextView.setText(getString(R.string.status_card_view_on));
             }
@@ -154,6 +165,7 @@ public class MainActivity extends AppCompatActivity {
         String info = ((TextView) v).getText().toString();
         String address = info.substring(info.length() - 17);
         String deviceName = info.substring(0, info.length() - 17);
+        Log.v("MainActivity", "This is the MainActivity device name: " + deviceName + "------------");
         //Make intent to start a new activity
         Intent i = new Intent(MainActivity.this, LedControl.class);
         //Change the activity
