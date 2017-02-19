@@ -1,6 +1,9 @@
 package com.example.samue.plabarduinobluetoothcontroller;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.IntentFilter;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -22,11 +25,18 @@ import android.os.AsyncTask;
 import java.io.IOException;
 import java.util.UUID;
 
-import static com.example.samue.plabarduinobluetoothcontroller.R.id.btnOn;
+import static android.R.attr.action;
 import static com.example.samue.plabarduinobluetoothcontroller.R.layout.dialog;
 
+/*Current functionality:
+- user has chosen bt device to connect to, tries to connect
+- user interacts with bt device
+- if phone cannot communicate with bt device (when doing an action) --> tries to reconnect, if not exits activity
+- if bt is turned off by user? exit or stay on activity and ask to connect?...
+ */
+
 public class LedControl extends AppCompatActivity {
-    Button btnOn, btnOff, btnDisconnect, btnSendCommand;
+    Button btnOn, btnOff, btnDisconnect, btnSendCommand, btnRenameDevice;
     SeekBar brightness;
     CardView cardView;
     TextView progressTxt, cardStatus;
@@ -34,7 +44,7 @@ public class LedControl extends AppCompatActivity {
     Intent newInt;
 
     private ProgressDialog progress;
-    BluetoothAdapter myBlueTooth = null;
+    BluetoothAdapter myBluetooth = null;
     BluetoothSocket btSocket = null;
     private boolean isBtConnected = false;
     static final UUID myUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
@@ -48,14 +58,21 @@ public class LedControl extends AppCompatActivity {
         address = newInt.getStringExtra(MainActivity.EXTRA_ADDRESS);
         deviceName = newInt.getStringExtra(MainActivity.EXTRA_DEVICE_NAME);
 
-        cardStatus = (TextView) findViewById(R.id.card_control_panel_text_view);
+        cardStatus = (TextView) findViewById(R.id.txt_connection_status);
         cardStatus.setText(getString(R.string.status_card_view_cp, deviceName));
+
+        // IntentFilter to register changes in bluetooth status
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
+        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        this.registerReceiver(new mReceiver(), filter);
 
         cardView = (CardView) findViewById(R.id.card_control_panel_card_view);
         cardView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                renameDevice();
+                btTurnOn();
             }
         });
 
@@ -80,6 +97,14 @@ public class LedControl extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 turnOffLed();
+            }
+        });
+
+        btnRenameDevice = (Button) findViewById(R.id.btn_rename_device);
+        btnRenameDevice.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                renameDevice();
             }
         });
 
@@ -114,6 +139,30 @@ public class LedControl extends AppCompatActivity {
 
     }
 
+    //The BroadcastReceiver that listens for bluetooth broadcasts
+    class mReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction(); // gets the action (ACTION_ACL_CONNECTED etc..)
+            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+
+            if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
+                if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_OFF) {
+                    cardStatus.setText(getString(R.string.status_card_view_off));
+                    Toast.makeText(getApplicationContext(), getString(R.string.disconnected_from_device), Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            }
+            else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
+                cardStatus.setText(getString(R.string.status_card_view_connected, deviceName));
+            }
+            else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
+                Toast.makeText(getApplicationContext(), getString(R.string.disconnected_from_device), Toast.LENGTH_LONG).show();
+                new ConnectBT().execute(); //Call the class to connect
+            }
+        }
+    };
+
     private class ConnectBT extends AsyncTask<Void, Void, Void> {
 
         private boolean connectSuccess = true;
@@ -127,8 +176,8 @@ public class LedControl extends AppCompatActivity {
         protected Void doInBackground(Void... devices) {
             try {
                 if (btSocket == null || !isBtConnected) {
-                    myBlueTooth = BluetoothAdapter.getDefaultAdapter(); // get the mobile bt device
-                    BluetoothDevice connectedDevice = myBlueTooth.getRemoteDevice(address); //connects to the devices address and checks if it's available
+                    myBluetooth = BluetoothAdapter.getDefaultAdapter(); // get the mobile bt device
+                    BluetoothDevice connectedDevice = myBluetooth.getRemoteDevice(address); //connects to the devices address and checks if it's available
                     //deviceName = device.getName(); // Necessary?...
                     btSocket = connectedDevice.createInsecureRfcommSocketToServiceRecord(myUUID);
                     BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
@@ -171,11 +220,11 @@ public class LedControl extends AppCompatActivity {
                         btSocket.getOutputStream().write(("AT+NAME" + (deviceNameEditText.getText()).toString()).getBytes());
                         deviceName = deviceNameEditText.getText().toString();
                     } catch (IOException e) {
-                        msg("Error. Cannot communicate with bluetooth socket");
+                        msg(getString(R.string.error_bt_socket));
+                        new ConnectBT().execute(); //Call the class to connect
+
                     }
                 }
-                cardStatus = (TextView) findViewById(R.id.card_control_panel_text_view);
-                cardStatus.setText(getString(R.string.status_card_view_cp, deviceName));  // Or use startActivityForResult
             }
         });
 
@@ -187,6 +236,7 @@ public class LedControl extends AppCompatActivity {
         AlertDialog b = dialogBuilder.create();
         b.show();
     }
+
 
     public void sendCommand() {
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
@@ -203,7 +253,8 @@ public class LedControl extends AppCompatActivity {
                     try {
                         btSocket.getOutputStream().write((deviceNameEditText.getText().toString().toUpperCase()).getBytes());
                     } catch (IOException e) {
-                        msg("Error. Cannot communicate with bluetooth socket");
+                        msg(getString(R.string.error_bt_socket));
+                        new ConnectBT().execute(); //Call the class to connect
                     }
                 }
             }
@@ -227,7 +278,7 @@ public class LedControl extends AppCompatActivity {
             try {
                 btSocket.close();
             } catch (IOException e) {
-                msg("Error. Cannot communicate with bluetooth socket");
+                msg(getString(R.string.error_bt_socket));
             }
         }
         finish(); // Return to the first layout
@@ -238,7 +289,9 @@ public class LedControl extends AppCompatActivity {
             try {
                 btSocket.getOutputStream().write("LEDOFF".toString().getBytes());
             } catch (IOException e) {
-                msg("Error. Cannot communicate with bluetooth socket");
+                msg(getString(R.string.error_bt_socket));
+                new ConnectBT().execute(); //Call the class to connect
+
             }
         }
     }
@@ -248,8 +301,17 @@ public class LedControl extends AppCompatActivity {
             try {
                 btSocket.getOutputStream().write("LEDON".toString().getBytes());
             } catch (IOException e) {
-                msg("Error. Cannot communicate with bluetooth socket");
+                msg(getString(R.string.error_bt_socket));
+                new ConnectBT().execute(); //Call the class to connect
+
             }
+        }
+    }
+
+    private void btTurnOn() {
+        if (!myBluetooth.isEnabled()) { //Bluetooth not enabled, ask user to turn on
+            Intent turnBTon = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(turnBTon, 1);
         }
     }
 }

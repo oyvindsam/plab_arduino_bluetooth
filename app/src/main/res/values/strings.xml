@@ -1,9 +1,9 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="app_name">Plab Arduino Bluetooth Controller</string>
+    <string name="app_name">ProgLab Arduino BT</string>
     <string name="status">Status</string>
     <string name="status_card_view_off">Bluetooth: OFF\nClick to activate bluetooth</string>
     <string name="status_card_view_on">Bluetooth: ON\nNot connected to a device</string>
-    <string name="status_card_view_connected">Bluetooth: ON\nConnected to</string>
+    <string name="status_card_view_connected">Bluetooth: ON\nConnected to <xliff:g id="deviceName" example="HC-06">%s</xliff:g></string>
     <string name="status_card_view_disconnected">Bluetooth: OFF\nDisconnected!</string>
     <string name="status_card_view_not_available">Bluetooth: NOT AVAILABLE\nNO ADAPTER FOUND</string>
 
@@ -22,6 +22,9 @@
     <string name="alert_dialog_header_command">Enter new command</string>
     <string name="alert_dialog_message_command">Not case sensitive</string>
     <string name="send_command">Send new command</string>
+    <string name="rename_device">Rename device</string>
+    <string name="disconnected_from_device">Disconnected from device</string>
+    <string name="error_bt_socket">Error. Cannot communicate with bluetooth socket</string>
 
 
 

@@ -31,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
     TextView connectionTextView;
     public static String EXTRA_ADDRESS ="com.samue.plabarduinobluetoothcontroller"; // for intent
     public static String EXTRA_DEVICE_NAME = "com.samue.devicename";
+    private String deviceName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,7 +69,8 @@ public class MainActivity extends AppCompatActivity {
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        this.registerReceiver(mReceiver, filter);
+        this.registerReceiver(new mReceiver(), filter);
+
 
         // Initial setup of status information --------------------------------------------------
         connectionTextView = (TextView) findViewById(R.id.txt_connection_status);
@@ -85,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //The BroadcastReceiver that listens for bluetooth broadcasts
-    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+    class mReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction(); // gets the action (ACTION_ACL_CONNECTED etc..)
@@ -99,7 +101,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
-                String statusMessage = getString(R.string.status_card_view_connected) + " " + device.getName();
+                deviceName = device.getName();
+                String statusMessage = getString(R.string.status_card_view_connected, deviceName);
                 connectionTextView.setText(statusMessage);
             }
             else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
@@ -115,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void openBtSettings() {
+    void openBtSettings() {
         Intent turnBTon = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
         startActivityForResult(turnBTon, 1);
     }
