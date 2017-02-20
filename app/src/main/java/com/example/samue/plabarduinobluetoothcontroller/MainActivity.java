@@ -91,6 +91,9 @@ public class MainActivity extends AppCompatActivity {
     //The BroadcastReceiver that listens for bluetooth broadcasts
     // Goal for this code: check bluetooth status and give user feedback on:
     // 1. [on, not connected], 2. [on, connected to "device"], 3. [off]
+    // Optionally this would be its own class somehow (in .class file). So I could start 1 "global"
+    // intent and use this code to listen for changes in bluetooth status, and accordingly update
+    // the two different status cards inside the two activities.
     class mReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
