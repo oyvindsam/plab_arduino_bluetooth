@@ -163,30 +163,29 @@ public class LedControl extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction(); // gets the action (ACTION_ACL_CONNECTED etc..)
             BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            switch (action) {
+                case BluetoothAdapter.ACTION_STATE_CHANGED:
+                    if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_OFF
+                            || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_OFF) {
+                        Toast.makeText(getApplicationContext(), getString(R.string.disconnected_from_device), Toast.LENGTH_LONG).show();
+                        finish();
+                    }
 
-            // Bluetooth is turned off
-            if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
-                if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_OFF
-                        || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_OFF) {
+                    if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_ON
+                            || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_ON) {
+                        cardStatus.setText(getString(R.string.status_card_view_on));
+                    }
+                    // BT is on and connected
+                case BluetoothDevice.ACTION_ACL_CONNECTED:
+                    deviceName = device.getName();
+                    String statusMessage = getString(R.string.status_card_view_connected, deviceName);
+                    cardStatus.setText(statusMessage);
+
+                    // Bt is on but disconnected
+                case BluetoothDevice.ACTION_ACL_DISCONNECTED: {
                     Toast.makeText(getApplicationContext(), getString(R.string.disconnected_from_device), Toast.LENGTH_LONG).show();
-                    finish();
+                    new ConnectBT().execute(); //Call the class to connect            }
                 }
-
-                if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_ON
-                    || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_ON) {
-                    cardStatus.setText(getString(R.string.status_card_view_on));
-                }
-            }
-            // BT is on and connected
-            else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
-                deviceName = device.getName();
-                String statusMessage = getString(R.string.status_card_view_connected, deviceName);
-                cardStatus.setText(statusMessage);
-            }
-            // Bt is on but disconnected
-            else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
-                Toast.makeText(getApplicationContext(), getString(R.string.disconnected_from_device), Toast.LENGTH_LONG).show();
-                new ConnectBT().execute(); //Call the class to connect            }
             }
         }
     }
@@ -243,8 +242,8 @@ public class LedControl extends AppCompatActivity {
             public void onClick(DialogInterface dialog, int whichButton) {
                 if (btSocket != null) {
                     try {
-                        btSocket.getOutputStream().write(("AT+NAME" + (deviceNameEditText.getText()).toString()).getBytes());
                         deviceName = deviceNameEditText.getText().toString();
+                        btSocket.getOutputStream().write(("AT+NAME" + (deviceName.getBytes());
                     } catch (IOException e) {
                         msg(getString(R.string.error_bt_socket));
                         new ConnectBT().execute(); //Call the class to connect
