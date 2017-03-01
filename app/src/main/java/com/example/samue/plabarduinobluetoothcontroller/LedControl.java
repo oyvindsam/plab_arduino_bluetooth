@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 import static android.R.attr.action;
+import static android.R.attr.filter;
 import static com.example.samue.plabarduinobluetoothcontroller.R.layout.dialog;
 
 /*Current functionality:
@@ -43,6 +44,7 @@ public class LedControl extends AppCompatActivity {
     TextView progressTxt, cardStatus;
     String address, deviceName;
     Intent newInt;
+    IntentFilter filter;
 
     private ProgressDialog progress;
     BluetoothAdapter myBluetooth = null;
@@ -55,6 +57,8 @@ public class LedControl extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_led_control);
+        Log.v("Led", "OnCreate");
+
 
         newInt = getIntent();
         address = newInt.getStringExtra(MainActivity.EXTRA_ADDRESS);
@@ -137,7 +141,7 @@ public class LedControl extends AppCompatActivity {
         });
 
         // IntentFilter to register changes in bluetooth status
-        IntentFilter filter = new IntentFilter();
+        filter = new IntentFilter();
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
@@ -150,7 +154,32 @@ public class LedControl extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        unregisterReceiver(bluetoothReceiver);
+        Log.v("Led", "OnPause");
+
+        this.unregisterReceiver(bluetoothReceiver);
+        progress.dismiss();
+        progress = null;
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.v("Led", "OnResume");
+
+        this.registerReceiver(bluetoothReceiver, filter);
+    }
+
+    @Override
+    public void onDestroy(){
+        super.onDestroy();
+        Log.v("Led", "OnDestroy");
+        if ( progress!=null && progress.isShowing() ){
+            Log.v("Led", "OnDestroy -- progress.dismiss()");
+
+            progress.dismiss();
+            progress = null;
+        }
     }
 
     //TODO put these classes in their own file ---------------------------------------------------
@@ -184,7 +213,7 @@ public class LedControl extends AppCompatActivity {
                     // Bt is on but disconnected
                 case BluetoothDevice.ACTION_ACL_DISCONNECTED: {
                     Toast.makeText(getApplicationContext(), getString(R.string.disconnected_from_device), Toast.LENGTH_LONG).show();
-                    new ConnectBT().execute(); //Call the class to connect            }
+                    //new ConnectBT().execute(); //Call the class to connect // Oh very bad -- do not implement           }
                 }
             }
         }
@@ -200,17 +229,21 @@ public class LedControl extends AppCompatActivity {
 
         @Override
         protected Void doInBackground(Void... devices) {
+            Log.v("Led", "start doInBackground---");
             try {
                 if (btSocket == null || !isBtConnected) {
                     myBluetooth = BluetoothAdapter.getDefaultAdapter(); // get the mobile bt device
                     BluetoothDevice connectedDevice = myBluetooth.getRemoteDevice(address); //connects to the devices address and checks if it's available
                     btSocket = connectedDevice.createInsecureRfcommSocketToServiceRecord(myUUID);
                     BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
+                    Log.v("Led", "Before connect()");
 
                     btSocket.connect(); // Error here when failing to connect. Happens on PC?
+                    Log.v("Led", "After connect()");
 
                 }
             } catch (IOException e) {
+                Log.v("Led", "IOException after connect()");
                 connectSuccess = false;
             }
             return null;
@@ -219,13 +252,19 @@ public class LedControl extends AppCompatActivity {
         @Override
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
+            Log.v("Led", "OnPostExecute ----");
+
             if (!connectSuccess) {
                 msg("Connection failed");
+                Log.v("Led", "Before finish()");
                 finish();
             } else {
+                Log.v("Led", "Connected --");
+
                 msg("Connected");
                 isBtConnected = true;
             }
+            Log.v("Led", "Before dismiss()");
             progress.dismiss();
         }
     }
@@ -317,7 +356,6 @@ public class LedControl extends AppCompatActivity {
             } catch (IOException e) {
                 msg(getString(R.string.error_bt_socket));
                 new ConnectBT().execute(); //Call the class to connect
-
             }
         }
     }

@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.IntentFilter;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+
 import java.util.Set;
 import java.util.ArrayList;
 
@@ -23,24 +24,29 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 
 
+import static android.R.attr.action;
+import static android.R.attr.filter;
 import static android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED;
 
 
 public class MainActivity extends AppCompatActivity {
+    private final static int REQUEST_ENABLE_BT = 123;
     private BluetoothAdapter myBluetooth;
     TextView connectionTextView;
     CardView statusCardView;
     Button btnPairedList, btnOpenBtSettings;
     public static String EXTRA_ADDRESS = "com.samue.plabarduinobluetoothcontroller"; // for intent
     public static String EXTRA_DEVICE_NAME = "com.samue.devicename";
-    private IntentFilter filter;
     private String deviceName;
-    private mReceiver bluetoothReceiver = new mReceiver();
+    private IntentFilter filterBluetoothDevice, filterBluetoothAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Log.v("Main OnCreate", "--");
+
 
         //OnClickListener setup with method calls ----------------------------------------------
         statusCardView = (CardView) findViewById(R.id.card_status_connection);
@@ -69,17 +75,27 @@ public class MainActivity extends AppCompatActivity {
         // --------------------------------------------------------------------------------------
 
         // IntentFilter to register changes in bluetooth status
-        filter = new IntentFilter();
-        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
-        filter.addAction(ACTION_ACL_DISCONNECTED);
-        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        this.registerReceiver(bluetoothReceiver, filter);
+
+
+
+        filterBluetoothDevice = new IntentFilter();
+        filterBluetoothDevice.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
+        filterBluetoothDevice.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+
+        filterBluetoothAdapter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+
+        this.registerReceiver(mBluetoothDeviceReceiver, filterBluetoothDevice);
+        this.registerReceiver(mBluetoothAdapterReceiver, filterBluetoothAdapter);
 
 
         // Initial setup of status information --------------------------------------------------
         connectionTextView = (TextView) findViewById(R.id.txt_connection_status);
 
         myBluetooth = BluetoothAdapter.getDefaultAdapter();
+        updateStatusTextView();
+    }
+
+    private void updateStatusTextView() {
         if (myBluetooth == null) {
             Toast.makeText(getApplicationContext(), "No bluetooth adapter found", Toast.LENGTH_LONG).show();
             connectionTextView.setText(getString(R.string.status_card_view_not_available));
@@ -93,52 +109,106 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        unregisterReceiver(bluetoothReceiver);
+        Log.v("Main", "onpause");
+        this.unregisterReceiver(mBluetoothDeviceReceiver);
+        this.unregisterReceiver(mBluetoothAdapterReceiver);
     }
 
-    //The BroadcastReceiver that listens for bluetooth broadcasts
-    // Goal for this code: check bluetooth status and give user feedback on:
-    // 1. [on, not connected], 2. [on, connected to "device"], 3. [off]
-    // Optionally this would be its own class somehow (in .class file). So I could start 1 "global"
-    // intent and use this code to listen for changes in bluetooth status, and accordingly update
-    // the two different status cards inside the two activities.
-    class mReceiver extends BroadcastReceiver {
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.v("Main", "onresume");
+        this.registerReceiver(mBluetoothDeviceReceiver, filterBluetoothDevice);
+        this.registerReceiver(mBluetoothAdapterReceiver, filterBluetoothAdapter);
+        updateStatusTextView();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Log.v("Main", "onstop");
+        try {
+            this.unregisterReceiver(mBluetoothDeviceReceiver);
+            this.unregisterReceiver(mBluetoothAdapterReceiver);
+        } catch (RuntimeException e) {
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.v("Main", "onstop");
+        try {
+            this.unregisterReceiver(mBluetoothDeviceReceiver);
+            this.unregisterReceiver(mBluetoothAdapterReceiver);
+        } catch (RuntimeException e) {
+        }
+    }
+
+    private final BroadcastReceiver mBluetoothAdapterReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction(); // gets the action (ACTION_ACL_CONNECTED etc..)
+            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+
+                Log.v("BluetoothAdapterRec", "action is STATE CHANGED " + action + "\nMatches: " + BluetoothAdapter.ACTION_STATE_CHANGED);
+                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
+                switch (state) {
+                    case BluetoothAdapter.STATE_OFF:
+                        connectionTextView.setText(getString(R.string.status_card_view_off));
+                        break;
+                    //Not necessary?
+                    case BluetoothAdapter.STATE_TURNING_OFF:
+                        connectionTextView.setText(getString(R.string.status_card_view_off));
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_ON:
+                        connectionTextView.setText(getString(R.string.status_card_view_on));
+                        break;
+                    case BluetoothAdapter.STATE_ON:
+                        connectionTextView.setText(getString(R.string.status_card_view_on));
+                        break;
+
+                }
+            }
+        }
+    };
+
+    private final BroadcastReceiver mBluetoothDeviceReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction(); // gets the action (ACTION_ACL_CONNECTED etc..)
             BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            Log.v("mBluetoothDeviceRec", "action is::: " + action);
             switch (action) {
-                case BluetoothAdapter.ACTION_STATE_CHANGED: {
-                    if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_OFF
-                            || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_OFF) {
-                        connectionTextView.setText(getString(R.string.status_card_view_off));
-                    }
-
-                    if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_ON
-                            || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_ON) {
-                        connectionTextView.setText(getString(R.string.status_card_view_on));
-                    }
-                }
                 // BT is on and connected
-                case BluetoothDevice.ACTION_ACL_CONNECTED: {
+                case BluetoothDevice.ACTION_ACL_CONNECTED:
+                    Log.v("mBluetoothDeviceRec", "action is ACL CONNECTED  " + action);
                     deviceName = device.getName();
                     String statusMessage = getString(R.string.status_card_view_connected, deviceName);
                     connectionTextView.setText(statusMessage);
-                }
-                // Bt is on but disconnected
-                case BluetoothDevice.ACTION_ACL_DISCONNECTED: {
+
+                case BluetoothDevice.ACTION_ACL_DISCONNECTED:
+                    Log.v("mBluetoothDeviceRec", "action is ACL DISCONNECTED " + action);
                     connectionTextView.setText(getString(R.string.status_card_view_on));
-                }
             }
         }
-    }
-
-    ;
+    };
 
     private void btTurnOn() {
         if (!myBluetooth.isEnabled()) { //Bluetooth not enabled, ask user to turn on
             Intent turnBTon = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(turnBTon, 1);
+            startActivityForResult(turnBTon, REQUEST_ENABLE_BT);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_ENABLE_BT) {
+            if (resultCode == RESULT_OK) {
+                connectionTextView.setText(getString(R.string.status_card_view_on));
+            } else {
+                connectionTextView.setText(getString(R.string.status_card_view_error));
+            }
         }
     }
 

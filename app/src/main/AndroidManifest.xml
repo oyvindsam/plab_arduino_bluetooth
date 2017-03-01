@@ -20,16 +20,11 @@
         </activity>
         <activity android:name=".LedControl"></activity>
     </application>
-
-    <!-- <receiver android:name="MyReceiver">
-
+    <receiver android:name=".mBluetoothDeviceReceiver">
         <intent-filter>
             <action android:name="android.bluetooth.device.action.ACL_CONNECTED"/>
             <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED"/>
-            <action android:name="android.bluetooth.adapter.action.STATE_CHANGED"/>
-
         </intent-filter>
-
-    </receiver> -->
+    </receiver>
 
 </manifest>

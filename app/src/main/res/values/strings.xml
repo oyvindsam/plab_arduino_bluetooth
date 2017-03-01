@@ -2,6 +2,7 @@
     <string name="app_name">ProgLab Arduino BT</string>
     <string name="status">Status</string>
     <string name="status_card_view_off">Bluetooth: OFF\nClick to activate bluetooth</string>
+    <string name="status_card_view_error">Bluetooth: OFF\nError activating bluetooth. Try again?</string>
     <string name="status_card_view_on">Bluetooth: ON\nNot connected to a device</string>
     <string name="status_card_view_connected">Bluetooth: ON\nConnected to <xliff:g id="deviceName" example="HC-06">%s</xliff:g></string>
     <string name="status_card_view_disconnected">Bluetooth: OFF\nDisconnected!</string>
@@ -9,7 +10,7 @@
 
     <string name="bluetooth_show_devices">Find paired devices</string>
     <string name="bluetooth_settings">Bluetooth settings</string>
-    <string name="status_card_view_cp">Connected to <xliff:g id="deviceName" example="HC-06">%s</xliff:g>
+    <string name="status_card_view_cp">Connecting to <xliff:g id="deviceName" example="HC-06">%s</xliff:g>
         Click to rename device</string>
     <string name="led_on">Led on</string>
     <string name="led_off">Led off</string>
