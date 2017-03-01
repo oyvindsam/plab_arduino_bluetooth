@@ -49,6 +49,7 @@ public class LedControl extends AppCompatActivity {
     BluetoothSocket btSocket = null;
     private boolean isBtConnected = false;
     static final UUID myUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private mReceiver bluetoothReceiver = new mReceiver();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -140,10 +141,16 @@ public class LedControl extends AppCompatActivity {
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        this.registerReceiver(new mReceiver(), filter);
+        this.registerReceiver(bluetoothReceiver, filter);
 
         new ConnectBT().execute(); //Call the class to connect
 
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(bluetoothReceiver);
     }
 
     //TODO put these classes in their own file ---------------------------------------------------

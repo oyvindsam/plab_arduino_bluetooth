@@ -34,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     public static String EXTRA_ADDRESS ="com.samue.plabarduinobluetoothcontroller"; // for intent
     public static String EXTRA_DEVICE_NAME = "com.samue.devicename";
     private String deviceName;
+    private mReceiver bluetoothReceiver = new mReceiver();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        this.registerReceiver(new mReceiver(), filter);
+        this.registerReceiver(bluetoothReceiver, filter);
 
 
         // Initial setup of status information --------------------------------------------------
@@ -86,6 +87,12 @@ public class MainActivity extends AppCompatActivity {
         } else {
             connectionTextView.setText(getString(R.string.status_card_view_on));
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(bluetoothReceiver);
     }
 
     //The BroadcastReceiver that listens for bluetooth broadcasts

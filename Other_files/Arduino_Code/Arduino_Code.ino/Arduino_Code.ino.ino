@@ -18,6 +18,7 @@ void setup() {
   Serial.begin(9600); //This is where you will transfer data. Open Serial Monitor to see data r/t.
   pinMode(btLed, OUTPUT);
   myservo.attach(7);
+  myservo.write(0);
 
 }
 
@@ -34,7 +35,29 @@ void loop() {
     }
     delay(1); // DOES NOT WORK WITHOUT THIS..
   }
+  if (string == "SERVOON") {
+    turnOn = 1;
+  }
+  if (string == "SERVOOFF") {
+    turnOn = 2;
+  }
+  if (turnOn == 1 || turnOn == 2) {
+  if (turnOn == 1) {
+      for (pos = 0; pos <= 45; pos += 1) {
+        myservo.write(pos);
+        delay(15);
+      }
+    }
+    if (turnOn == 2) {
+      for (pos = 45; pos >= 0; pos -= 1) {
+        myservo.write(pos);
+        delay(15);
+      }
+    }
+  }
+  turnOn = 0;
   commandList(string);
+  string = "";
   Serial.print(" "); // DOES NOT WORK WITHOUT THIS..
 }
 
@@ -51,19 +74,12 @@ void commandList(String string) {
   if (string == "NOPARTY") {
     party = false;
   }
-  if (string == "SERVOON") {
-    turnOn = 1;
-  }
-  if (string == "SERVOOFF") {
-    turnOn = 2;
-  }
   if (string.substring(0, 2) == "AT") {
     Serial.print(string);
     //delay(2000); // might fix rx issues
   }
   houseParty(party); // Might be better to call all functions like this? (so ledOn/Off --> led(boolean b) )
   // So different tasks can run at the same time..
-  servoTurn(turnOn);
 }
 
 void ledOn() {
