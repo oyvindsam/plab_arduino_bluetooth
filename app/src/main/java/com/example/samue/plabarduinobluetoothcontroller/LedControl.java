@@ -242,8 +242,8 @@ public class LedControl extends AppCompatActivity {
             public void onClick(DialogInterface dialog, int whichButton) {
                 if (btSocket != null) {
                     try {
-                        deviceName = deviceNameEditText.getText().toString();
-                        btSocket.getOutputStream().write(("AT+NAME" + (deviceName.getBytes());
+                        String newDeviceName = deviceNameEditText.getText().toString();
+                        btSocket.getOutputStream().write(("AT+NAME" + deviceName).toString().getBytes());
                     } catch (IOException e) {
                         msg(getString(R.string.error_bt_socket));
                         new ConnectBT().execute(); //Call the class to connect
@@ -261,6 +261,7 @@ public class LedControl extends AppCompatActivity {
         AlertDialog b = dialogBuilder.create();
         b.show();
     }
+
 
 
     public void sendCommand() {
