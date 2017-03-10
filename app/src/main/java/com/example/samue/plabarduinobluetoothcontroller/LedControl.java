@@ -38,20 +38,19 @@ import static com.example.samue.plabarduinobluetoothcontroller.R.layout.dialog;
  */
 
 public class LedControl extends AppCompatActivity {
-    Button btnOn, btnOff, btnDisconnect, btnSendCommand, btnRenameDevice;
+    Button btnOn, btnOff, btnDisconnect, btnSendCommand, btnRenameDevice, btnLightOn, btnLightOff;
     SeekBar brightness;
     CardView cardView;
     TextView progressTxt, cardStatus;
     String address, deviceName;
     Intent newInt;
-    IntentFilter filter;
 
     private ProgressDialog progress;
     BluetoothAdapter myBluetooth = null;
     BluetoothSocket btSocket = null;
     private boolean isBtConnected = false;
     static final UUID myUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    private mReceiver bluetoothReceiver = new mReceiver();
+    private IntentFilter filterBluetoothDevice, filterBluetoothAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,6 +99,22 @@ public class LedControl extends AppCompatActivity {
             }
         });
 
+        btnLightOn = (Button) findViewById(R.id.btn_light_on);
+        btnLightOn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                turnOnLight();
+            }
+        });
+
+        btnLightOff = (Button) findViewById(R.id.btn_light_off);
+        btnLightOff.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                turnOffLight();
+            }
+        });
+
         btnRenameDevice = (Button) findViewById(R.id.btn_rename_device);
         btnRenameDevice.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -122,11 +137,9 @@ public class LedControl extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser) {
                     progressTxt.setText(String.valueOf(progress));
-                    try {
-                        btSocket.getOutputStream().write(String.valueOf(progress).getBytes());
-                    } catch (IOException e) {
-                        msg(getString(R.string.error_bt_socket));
-                        new ConnectBT().execute(); //Call the class to try to reconnect
+                    if (progress >= 0) {
+                        String s = "SLIDER" + String.valueOf(progress);
+                        sendMessage(s);
                     }
                 }
             }
@@ -141,39 +154,86 @@ public class LedControl extends AppCompatActivity {
         });
 
         // IntentFilter to register changes in bluetooth status
-        filter = new IntentFilter();
-        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
-        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
-        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-        this.registerReceiver(bluetoothReceiver, filter);
+        filterBluetoothDevice = new IntentFilter();
+        filterBluetoothDevice.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
+        filterBluetoothDevice.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+
+        filterBluetoothAdapter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+
+        this.registerReceiver(mBluetoothDeviceReceiver, filterBluetoothDevice);
+        this.registerReceiver(mBluetoothAdapterReceiver, filterBluetoothAdapter);
 
         new ConnectBT().execute(); //Call the class to connect
 
+    }
+
+    private void sendMessage(String s) {
+        byte[] buffer = new byte[s.length()];
+        for (int i=0; i<s.length();i++){
+            buffer[i] = (byte) s.charAt(i);
+        }
+        try {
+            btSocket.getOutputStream().write(buffer, 0, s.length());
+        } catch (IOException e) {
+            msg(getString(R.string.error_bt_socket));
+            new ConnectBT().execute(); //Call the class to try to reconnect
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Log.v("Led", "onstop");
+        try {
+            this.unregisterReceiver(mBluetoothDeviceReceiver);
+            this.unregisterReceiver(mBluetoothAdapterReceiver);
+        } catch (RuntimeException e) {
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         Log.v("Led", "OnPause");
+        this.unregisterReceiver(mBluetoothDeviceReceiver);
+        this.unregisterReceiver(mBluetoothAdapterReceiver);
+        if ( progress!=null && progress.isShowing() ) {
+            Log.v("Led", "OnDPause -- progress.dismiss()");
 
-        this.unregisterReceiver(bluetoothReceiver);
-        progress.dismiss();
-        progress = null;
-
+            progress.dismiss();
+            progress = null;
+        }
+        if ( progress!=null && progress.isShowing() ){
+            Log.v("Led", "onPause -- progress.dismiss()");
+            progress.dismiss();
+            progress = null;
+        }
+        if (btSocket != null) {
+            try {
+                btSocket.close();
+            } catch (IOException e) {
+                msg(getString(R.string.error_bt_socket));
+            }
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         Log.v("Led", "OnResume");
-
-        this.registerReceiver(bluetoothReceiver, filter);
+        this.registerReceiver(mBluetoothDeviceReceiver, filterBluetoothDevice);
+        this.registerReceiver(mBluetoothAdapterReceiver, filterBluetoothAdapter);
     }
 
     @Override
     public void onDestroy(){
         super.onDestroy();
         Log.v("Led", "OnDestroy");
+        try {
+            this.unregisterReceiver(mBluetoothDeviceReceiver);
+            this.unregisterReceiver(mBluetoothAdapterReceiver);
+        } catch (RuntimeException e) {
+        }
         if ( progress!=null && progress.isShowing() ){
             Log.v("Led", "OnDestroy -- progress.dismiss()");
 
@@ -187,37 +247,57 @@ public class LedControl extends AppCompatActivity {
     //The BroadcastReceiver that listens for bluetooth broadcasts
     // Goal for this code: check bluetooth status and give user feedback on:
     // 1. [on, not connected], 2. [on, connected to "device"], 3. [off]
-    class mReceiver extends BroadcastReceiver {
+    private final BroadcastReceiver mBluetoothAdapterReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction(); // gets the action (ACTION_ACL_CONNECTED etc..)
+            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+
+                Log.v("LED--initial--BTadapte", "action is STATE CHANGED " + action + "\nMatches: " + BluetoothAdapter.ACTION_STATE_CHANGED);
+                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
+                Log.v("BluetoothAdapterRec", "action is STATE CHANGED and: == " + state);
+
+                switch (state) {
+                    case BluetoothAdapter.STATE_OFF:
+                        cardStatus.setText(getString(R.string.status_card_view_off));
+                        break;
+                    //Not necessary?
+                    case BluetoothAdapter.STATE_TURNING_OFF:
+                        cardStatus.setText(getString(R.string.status_card_view_off));
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_ON:
+                        cardStatus.setText(getString(R.string.status_card_view_on));
+                        break;
+                    case BluetoothAdapter.STATE_ON:
+                        cardStatus.setText(getString(R.string.status_card_view_on));
+                        break;
+
+                }
+            }
+        }
+    };
+
+    private final BroadcastReceiver mBluetoothDeviceReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction(); // gets the action (ACTION_ACL_CONNECTED etc..)
             BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            Log.v("LED--initial receive--", "action is== " + action);
             switch (action) {
-                case BluetoothAdapter.ACTION_STATE_CHANGED:
-                    if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_OFF
-                            || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_OFF) {
-                        Toast.makeText(getApplicationContext(), getString(R.string.disconnected_from_device), Toast.LENGTH_LONG).show();
-                        finish();
-                    }
-
-                    if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_ON
-                            || intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_TURNING_ON) {
-                        cardStatus.setText(getString(R.string.status_card_view_on));
-                    }
-                    // BT is on and connected
+                // BT is on and connected
                 case BluetoothDevice.ACTION_ACL_CONNECTED:
+                    Log.v("LED--ACL-Con-- ", "action is==  " + action);
                     deviceName = device.getName();
                     String statusMessage = getString(R.string.status_card_view_connected, deviceName);
                     cardStatus.setText(statusMessage);
-
-                    // Bt is on but disconnected
-                case BluetoothDevice.ACTION_ACL_DISCONNECTED: {
-                    Toast.makeText(getApplicationContext(), getString(R.string.disconnected_from_device), Toast.LENGTH_LONG).show();
-                    //new ConnectBT().execute(); //Call the class to connect // Oh very bad -- do not implement           }
-                }
+                    break;
+                case BluetoothDevice.ACTION_ACL_DISCONNECTED:
+                    Log.v("LED--ACL-DisCon--", "action== " + action);
+                    cardStatus.setText(getString(R.string.status_card_view_on));
+                    break;
             }
         }
-    }
+    };
 
     private class ConnectBT extends AsyncTask<Void, Void, Void> {
         private boolean connectSuccess = true;
@@ -230,6 +310,7 @@ public class LedControl extends AppCompatActivity {
         @Override
         protected Void doInBackground(Void... devices) {
             Log.v("Led", "start doInBackground---");
+            isBtConnected = false;
             try {
                 if (btSocket == null || !isBtConnected) {
                     myBluetooth = BluetoothAdapter.getDefaultAdapter(); // get the mobile bt device
@@ -265,7 +346,12 @@ public class LedControl extends AppCompatActivity {
                 isBtConnected = true;
             }
             Log.v("Led", "Before dismiss()");
-            progress.dismiss();
+            if ( progress!=null && progress.isShowing() ){
+                Log.v("Led", "OnDestroy -- progress.dismiss()");
+
+                progress.dismiss();
+                progress = null;
+            }
         }
     }
 
@@ -279,16 +365,8 @@ public class LedControl extends AppCompatActivity {
         dialogBuilder.setTitle(getString(R.string.alert_dialog_header_device));
         dialogBuilder.setPositiveButton(getString(R.string.alert_dialog_done), new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                if (btSocket != null) {
-                    try {
-                        String newDeviceName = deviceNameEditText.getText().toString();
-                        btSocket.getOutputStream().write(("AT+NAME" + deviceName).toString().getBytes());
-                    } catch (IOException e) {
-                        msg(getString(R.string.error_bt_socket));
-                        new ConnectBT().execute(); //Call the class to connect
-
-                    }
-                }
+                String newDeviceName = deviceNameEditText.getText().toString();
+                sendMessage("AT+NAME" + deviceName);
             }
         });
 
@@ -314,14 +392,8 @@ public class LedControl extends AppCompatActivity {
         dialogBuilder.setMessage(getString(R.string.alert_dialog_message_command));
         dialogBuilder.setPositiveButton(getString(R.string.alert_dialog_done), new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                if (btSocket != null) {
-                    try {
-                        btSocket.getOutputStream().write((deviceNameEditText.getText().toString().toUpperCase()).getBytes());
-                    } catch (IOException e) {
-                        msg(getString(R.string.error_bt_socket));
-                        new ConnectBT().execute(); //Call the class to connect
-                    }
-                }
+                String command = deviceNameEditText.getText().toString().toUpperCase();
+                sendMessage(command);
             }
         });
         dialogBuilder.setNegativeButton(getString(R.string.alert_dialog_cancel), new DialogInterface.OnClickListener() {
@@ -350,27 +422,22 @@ public class LedControl extends AppCompatActivity {
     }
 
     public void turnOffLed() {
-        if (btSocket != null) {
-            try {
-                btSocket.getOutputStream().write("LEDOFF".getBytes());
-            } catch (IOException e) {
-                msg(getString(R.string.error_bt_socket));
-                new ConnectBT().execute(); //Call the class to connect
-            }
-        }
+        sendMessage("LEDOFF");
     }
 
     public void turnOnLed() {
-        if (btSocket != null) {
-            try {
-                btSocket.getOutputStream().write("LEDON".getBytes());
-            } catch (IOException e) {
-                msg(getString(R.string.error_bt_socket));
-                new ConnectBT().execute(); //Call the class to connect
-
-            }
-        }
+        sendMessage("LEDON");
     }
+
+    public void turnOnLight() {
+        sendMessage("SERVOON");
+    }
+
+    public void turnOffLight() {
+        sendMessage("SERVOOFF");
+    }
+
+
 
     private void btTurnOn() {
         if (!myBluetooth.isEnabled()) { //Bluetooth not enabled, ask user to turn on

@@ -14,6 +14,9 @@
         Click to rename device</string>
     <string name="led_on">Led on</string>
     <string name="led_off">Led off</string>
+    <string name="light_on">Light on</string>
+    <string name="light_off">Light off</string>
+
     <string name="disconnect">Disconnect</string>
     <string name="progress_dialog_connecting">Connecting to <xliff:g id="deviceName" example="HC-06">%s</xliff:g></string>
     <string name="progress_dialog_please_wait">Please wait.</string>

@@ -151,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
             String action = intent.getAction(); // gets the action (ACTION_ACL_CONNECTED etc..)
             if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
 
-                Log.v("BluetoothAdapterRec", "action is STATE CHANGED " + action + "\nMatches: " + BluetoothAdapter.ACTION_STATE_CHANGED);
+                Log.v("MAIN BTAdapterRec", "action is STATE CHANGED " + action + "\nMatches: " + BluetoothAdapter.ACTION_STATE_CHANGED);
                 final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
                 switch (state) {
                     case BluetoothAdapter.STATE_OFF:
@@ -182,14 +182,15 @@ public class MainActivity extends AppCompatActivity {
             switch (action) {
                 // BT is on and connected
                 case BluetoothDevice.ACTION_ACL_CONNECTED:
-                    Log.v("mBluetoothDeviceRec", "action is ACL CONNECTED  " + action);
+                    Log.v("MAINBluetoothDeviceRec", "action is ACL CONNECTED  " + action);
                     deviceName = device.getName();
                     String statusMessage = getString(R.string.status_card_view_connected, deviceName);
                     connectionTextView.setText(statusMessage);
-
+                    break;
                 case BluetoothDevice.ACTION_ACL_DISCONNECTED:
-                    Log.v("mBluetoothDeviceRec", "action is ACL DISCONNECTED " + action);
+                    Log.v("MAINBluetoothDeviceRec", "action is ACL DISCONNECTED " + action);
                     connectionTextView.setText(getString(R.string.status_card_view_on));
+                    break;
             }
         }
     };

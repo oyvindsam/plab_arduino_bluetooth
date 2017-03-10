@@ -67,7 +67,9 @@
         android:layout_gravity="center"
         android:layout_marginTop="16dp"
         android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp">
+        android:layout_marginRight="16dp"
+        android:drawSelectorOnTop="true"
+        >
 
     </ListView>
 

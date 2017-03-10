@@ -15,53 +15,57 @@ Servo myservo;
 int pos = 0;
 
 void setup() {
-  Serial.begin(9600); //This is where you will transfer data. Open Serial Monitor to see data r/t.
+  Serial.begin(9600);   // Open serial communication to Serial Monitor
+
   pinMode(btLed, OUTPUT);
   myservo.attach(7);
   myservo.write(0);
 
 }
 
+
+
 void loop() {
-  if (Serial.available()) {
-    string = "";
-  }
   while (Serial.available()) {
-    command = ((byte)Serial.read());
+    command = (byte)Serial.read();
     if (command == ":") {
       break;
     } else {
       string += command;
     }
-    delay(1); // DOES NOT WORK WITHOUT THIS..
+    // delay(1); // DOES NOT WORK WITHOUT THIS..
   }
+  /*
   if (string == "SERVOON") {
     turnOn = 1;
   }
   if (string == "SERVOOFF") {
     turnOn = 2;
-  }
-  if (turnOn == 1 || turnOn == 2) {
+  }*/
+ /*
   if (turnOn == 1) {
       for (pos = 0; pos <= 45; pos += 1) {
         myservo.write(pos);
         delay(15);
       }
+        turnOn = 0;
     }
     if (turnOn == 2) {
       for (pos = 45; pos >= 0; pos -= 1) {
         myservo.write(pos);
         delay(15);
       }
-    }
-  }
-  turnOn = 0;
+        turnOn = 0;
+    } */
+
   commandList(string);
   string = "";
-  Serial.print(" "); // DOES NOT WORK WITHOUT THIS..
+  Serial.print("");
 }
 
 void commandList(String string) {
+  Serial.print(string.substring(0,6));
+  //Serial.print(string.substring(6, string.length()));
   if (string == "LEDON") {
     ledOn();
   }
@@ -75,7 +79,13 @@ void commandList(String string) {
     party = false;
   }
   if (string.substring(0, 2) == "AT") {
-    Serial.print(string);
+    //Serial.print(string);
+  }
+    if (string.substring(0, 6) == "SLIDER") {
+    //Serial.print(string.substring(6, string.length()));
+    int pos2 = string.substring(6, string.length()).toInt();
+    //Serial.print(pos2);
+    //myservo.write(pos2);
     //delay(2000); // might fix rx issues
   }
   houseParty(party); // Might be better to call all functions like this? (so ledOn/Off --> led(boolean b) )
