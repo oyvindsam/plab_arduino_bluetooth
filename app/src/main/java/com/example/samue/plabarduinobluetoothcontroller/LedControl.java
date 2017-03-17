@@ -28,6 +28,9 @@ import java.util.UUID;
 
 import static android.R.attr.action;
 import static android.R.attr.filter;
+import static com.example.samue.plabarduinobluetoothcontroller.R.id.btnOff;
+import static com.example.samue.plabarduinobluetoothcontroller.R.id.btnOn;
+import static com.example.samue.plabarduinobluetoothcontroller.R.id.btn_led_toggle;
 import static com.example.samue.plabarduinobluetoothcontroller.R.layout.dialog;
 
 /*Current functionality:
@@ -38,12 +41,13 @@ import static com.example.samue.plabarduinobluetoothcontroller.R.layout.dialog;
  */
 
 public class LedControl extends AppCompatActivity {
-    Button btnOn, btnOff, btnDisconnect, btnSendCommand, btnRenameDevice, btnLightOn, btnLightOff;
+    Button btnLedToggle, btnDisconnect, btnSendCommand;
     SeekBar brightness;
     CardView cardView;
     TextView progressTxt, cardStatus;
     String address, deviceName;
     Intent newInt;
+    private int ledStatus = 0;
 
     private ProgressDialog progress;
     BluetoothAdapter myBluetooth = null;
@@ -83,43 +87,11 @@ public class LedControl extends AppCompatActivity {
             }
         });
 
-        btnOn = (Button) findViewById(R.id.btnOn);
-        btnOn.setOnClickListener(new View.OnClickListener() {
+        btnLedToggle = (Button) findViewById(btn_led_toggle);
+        btnLedToggle.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                turnOnLed();
-            }
-        });
-
-        btnOff = (Button) findViewById(R.id.btnOff);
-        btnOff.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                turnOffLed();
-            }
-        });
-
-        btnLightOn = (Button) findViewById(R.id.btn_light_on);
-        btnLightOn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                turnOnLight();
-            }
-        });
-
-        btnLightOff = (Button) findViewById(R.id.btn_light_off);
-        btnLightOff.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                turnOffLight();
-            }
-        });
-
-        btnRenameDevice = (Button) findViewById(R.id.btn_rename_device);
-        btnRenameDevice.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                renameDevice();
+                toggleLed();
             }
         });
 
@@ -131,27 +103,6 @@ public class LedControl extends AppCompatActivity {
             }
         });
 
-        progressTxt = (TextView) findViewById(R.id.progress_txt);
-        brightness = (SeekBar) findViewById(R.id.seekBar_brightness);
-        brightness.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    progressTxt.setText(String.valueOf(progress));
-                    if (progress >= 0) {
-                        String s = "SLIDER" + String.valueOf(progress);
-                        sendMessage(s);
-                    }
-                }
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-            }
-        });
 
         // IntentFilter to register changes in bluetooth status
         filterBluetoothDevice = new IntentFilter();
@@ -168,6 +119,7 @@ public class LedControl extends AppCompatActivity {
     }
 
     private void sendMessage(String s) {
+        s = s + "\r\n";
         byte[] buffer = new byte[s.length()];
         for (int i=0; i<s.length();i++){
             buffer[i] = (byte) s.charAt(i);
@@ -178,6 +130,10 @@ public class LedControl extends AppCompatActivity {
             msg(getString(R.string.error_bt_socket));
             new ConnectBT().execute(); //Call the class to try to reconnect
         }
+    }
+
+    private void sendMessageInt(String s, int i) {
+        sendMessage(s + "," + i);
     }
 
     @Override
@@ -355,30 +311,6 @@ public class LedControl extends AppCompatActivity {
         }
     }
 
-    public void renameDevice() {
-        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = this.getLayoutInflater();
-        final View dialogView = inflater.inflate(dialog, null);
-        dialogBuilder.setView(dialogView);
-
-        final EditText deviceNameEditText = (EditText) dialogView.findViewById(R.id.alert_dialog_name_text_view);
-        dialogBuilder.setTitle(getString(R.string.alert_dialog_header_device));
-        dialogBuilder.setPositiveButton(getString(R.string.alert_dialog_done), new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                String newDeviceName = deviceNameEditText.getText().toString();
-                sendMessage("AT+NAME" + deviceName);
-            }
-        });
-
-        dialogBuilder.setNegativeButton(getString(R.string.alert_dialog_cancel), new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                //pass
-            }
-        });
-        AlertDialog b = dialogBuilder.create();
-        b.show();
-    }
-
 
 
     public void sendCommand() {
@@ -421,23 +353,19 @@ public class LedControl extends AppCompatActivity {
         finish(); // Return to the first layout
     }
 
-    public void turnOffLed() {
-        sendMessage("LEDOFF");
+
+    public void toggleLed() {
+        switch (ledStatus) {
+            case 0:
+                ledStatus = 1;
+                break;
+            case 1:
+                ledStatus = 0;
+                break;
+        }
+        sendMessageInt("LEDON", ledStatus);
+
     }
-
-    public void turnOnLed() {
-        sendMessage("LEDON");
-    }
-
-    public void turnOnLight() {
-        sendMessage("SERVOON");
-    }
-
-    public void turnOffLight() {
-        sendMessage("SERVOOFF");
-    }
-
-
 
     private void btTurnOn() {
         if (!myBluetooth.isEnabled()) { //Bluetooth not enabled, ask user to turn on
