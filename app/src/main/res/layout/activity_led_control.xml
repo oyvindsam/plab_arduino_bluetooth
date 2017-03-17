@@ -65,9 +65,15 @@
     </LinearLayout>
 
     <ScrollView
+        android:id="@+id/received_text_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/led_info_top" >
+
+        <TextView
+            android:id="@+id/received_text_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
     </ScrollView>
 
 

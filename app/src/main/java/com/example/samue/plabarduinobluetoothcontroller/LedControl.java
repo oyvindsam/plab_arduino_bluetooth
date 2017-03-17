@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.IntentFilter;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -13,8 +15,12 @@ import android.support.v7.widget.CardView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
@@ -24,12 +30,14 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.os.AsyncTask;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.UUID;
 
 import static android.R.attr.action;
 import static android.R.attr.filter;
-import static com.example.samue.plabarduinobluetoothcontroller.R.id.btnOff;
-import static com.example.samue.plabarduinobluetoothcontroller.R.id.btnOn;
+import static android.R.id.list;
 import static com.example.samue.plabarduinobluetoothcontroller.R.id.btn_led_toggle;
 import static com.example.samue.plabarduinobluetoothcontroller.R.layout.dialog;
 
@@ -44,8 +52,8 @@ public class LedControl extends AppCompatActivity {
     Button btnLedToggle, btnDisconnect, btnSendCommand;
     SeekBar brightness;
     CardView cardView;
-    TextView progressTxt, cardStatus;
-    String address, deviceName;
+    TextView progressTxt, cardStatus, receivedTextView;
+    String address, deviceName, receivedText;
     Intent newInt;
     private int ledStatus = 0;
 
@@ -103,6 +111,8 @@ public class LedControl extends AppCompatActivity {
             }
         });
 
+        receivedTextView = (TextView) findViewById(R.id.received_text_view);
+
 
         // IntentFilter to register changes in bluetooth status
         filterBluetoothDevice = new IntentFilter();
@@ -116,6 +126,12 @@ public class LedControl extends AppCompatActivity {
 
         new ConnectBT().execute(); //Call the class to connect
 
+
+    }
+
+    private void setText(String message) {
+        receivedText += message + "\n";
+        receivedTextView.setText(receivedText);
     }
 
     private void sendMessage(String s) {
@@ -283,6 +299,7 @@ public class LedControl extends AppCompatActivity {
                 Log.v("Led", "IOException after connect()");
                 connectSuccess = false;
             }
+
             return null;
         }
 
@@ -308,6 +325,8 @@ public class LedControl extends AppCompatActivity {
                 progress.dismiss();
                 progress = null;
             }
+            ConnectedThread mConnectedThread = new ConnectedThread(btSocket);
+            mConnectedThread.start();
         }
     }
 
@@ -363,7 +382,7 @@ public class LedControl extends AppCompatActivity {
                 ledStatus = 0;
                 break;
         }
-        sendMessageInt("LEDON", ledStatus);
+        sendMessageInt("LED", ledStatus);
 
     }
 
@@ -373,6 +392,71 @@ public class LedControl extends AppCompatActivity {
             startActivityForResult(turnBTon, 1);
         }
     }
+
+
+    private class ConnectedThread extends Thread {
+        private final BluetoothSocket mmSocket;
+        private final InputStream mmInStream;
+
+        public ConnectedThread(BluetoothSocket socket) {
+            mmSocket = socket;
+            InputStream tmpIn = null;
+            try {
+                tmpIn = socket.getInputStream();
+            } catch (IOException e) { }
+            mmInStream = tmpIn;
+        }
+        public void run() {
+            byte[] buffer = new byte[1024];
+            int begin = 0;
+            int bytes = 0;
+            while (true) {
+                try {
+                    bytes += mmInStream.read(buffer, bytes, buffer.length - bytes);
+
+                    for(int i = begin; i < bytes; i++) {
+                        if(buffer[i] == "#".getBytes()[0]) {
+                            mHandler.obtainMessage(1, begin, i, buffer).sendToTarget();
+                            begin = i + 1;
+                            if(i == bytes - 1) {
+                                bytes = 0;
+                                begin = 0;
+                            }
+                        }
+                    }
+                } catch (IOException e) {
+                    break;
+                }
+            }
+
+        }
+        public void cancel() {
+            try {
+                mmSocket.close();
+            } catch (IOException e) { }
+        }
+    }
+
+    Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            Log.v("sHandler", "------");
+
+            byte[] writeBuf = (byte[]) msg.obj;
+            int begin = (int)msg.arg1;
+            int end = (int)msg.arg2;
+
+            switch(msg.what) {
+                case 1:
+                    String writeMessage = new String(writeBuf);
+                    writeMessage = writeMessage.substring(begin, end);
+                    Log.v("Message: ", writeMessage);
+                    setText(writeMessage);
+                    break;
+            }
+        }
+    };
+
 }
 
 
